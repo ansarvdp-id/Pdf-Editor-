@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>সরাসরি পিডিএফ এডিটর</title>
+    <title>স্মার্ট পিডিএফ এডিটর</title>
     
-    <!-- প্রয়োজনীয় লাইব্রেরি -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -16,8 +15,8 @@
 
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #e0e0e0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -26,10 +25,10 @@
 
         .controls {
             background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
             display: flex;
             gap: 15px;
             align-items: center;
@@ -42,65 +41,74 @@
             color: white;
             border: none;
             cursor: pointer;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: 0.2s;
         }
-        button:hover { background: #0056b3; }
+        button:hover { background: #0056b3; transform: translateY(-1px); }
         .btn-download { background: #28a745; }
         .btn-download:hover { background: #218838; }
 
-        /* মেইন কন্টেইনার */
+        /* এডিটর কন্টেইনার */
         #page-container {
             position: relative;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2); /* শ্যাডো দিয়ে পেপারের লুক */
             background: white;
             margin-bottom: 20px;
         }
 
-        /* ক্যানভাস (ব্যাকগ্রাউন্ড হিসেবে থাকবে) */
         #pdf-canvas {
             display: block;
-            pointer-events: none; /* ক্যানভাসে ক্লিক হবে না */
+            pointer-events: none; 
         }
 
-        /* টেক্সট লেয়ার (এটাই এডিট করা যাবে) */
         #text-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             overflow: hidden;
-            line-height: 1;
         }
 
-        /* প্রতিটি লেখার স্টাইল */
+        /* --- ফিক্স করা টেক্সট স্টাইল --- */
         .editable-text {
             position: absolute;
             cursor: text;
             white-space: pre;
             transform-origin: 0% 0%;
-            border: 1px solid transparent; /* বর্ডার নেই */
-            background-color: rgba(255, 255, 255, 0.8); /* সাদা ব্যাকগ্রাউন্ড যাতে আসল লেখা ঢেকে যায় */
+            
+            /* মূল ফিক্স: সলিড সাদা ব্যাকগ্রাউন্ড যাতে পেছনের লেখা ঢেকে যায় */
+            background-color: #ffffff; 
+            
+            /* টেক্সট যাতে বক্সের বাইরে না যায় বা অদ্ভুত না দেখায় */
+            line-height: 1.1; 
+            padding: 0 2px; /* সামান্য প্যাডিং যাতে অক্ষর কেটে না যায় */
+            border-radius: 2px;
+            
+            /* বক্সের বর্ডার বা শ্যাডো মুছে ফেলা হয়েছে যাতে মিশে যায় */
+            box-shadow: none;
+            border: none;
+            color: transparent; /* লোড হওয়ার সময় আসল টেক্সট ট্রান্সপারেন্ট থাকবে, স্প্যান কালার সেট করবে */
         }
 
+        /* মাউস হোভার করলে হালকা বর্ডার আসবে যাতে বোঝা যায় এটা এডিট করা যাবে */
         .editable-text:hover {
-            border: 1px dashed #007bff; /* মাউস নিলে বর্ডার দেখাবে */
-            background-color: white;
-            z-index: 10;
+            outline: 1px dashed #bbb;
+            z-index: 100; /* হোভার করলে সবার উপরে আসবে */
         }
 
+        /* যখন লিখবেন তখন ফোকাস স্টাইল */
         .editable-text:focus {
-            outline: 2px solid #007bff;
-            background-color: white;
-            z-index: 20;
+            outline: 2px solid #007bff; /* নীল বর্ডার */
+            background-color: #ffffff;
+            z-index: 1000;
+            min-width: 20px; /* লেখা মুছে ফেললেও যাতে বক্স হারিয়ে না যায় */
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <label style="font-weight: bold;">১. পিডিএফ ফাইল দিন:</label>
+        <label>১. ফাইল আপলোড:</label>
         <input type="file" id="file-input" accept="application/pdf">
         
         <div id="page-nav" style="display: none;">
@@ -109,12 +117,13 @@
             <button onclick="changePage(1)">Next</button>
         </div>
 
-        <button class="btn-download" onclick="savePDF()">২. সেভ করুন (Download)</button>
+        <button class="btn-download" onclick="savePDF()">২. ডাউনলোড PDF</button>
     </div>
 
-    <div id="loading" style="display:none; color: red;">প্রসেস হচ্ছে, অপেক্ষা করুন...</div>
+    <div id="loading" style="display:none; color: #d63031; font-weight: bold; margin-bottom: 10px;">
+        প্রসেস হচ্ছে, দয়া করে অপেক্ষা করুন...
+    </div>
 
-    <!-- এডিটর এরিয়া -->
     <div id="page-container">
         <canvas id="pdf-canvas"></canvas>
         <div id="text-layer"></div>
@@ -123,13 +132,13 @@
     <script>
         let pdfDoc = null;
         let pageNum = 1;
-        let scale = 1.5; // কোয়ালিটি ভালো রাখার জন্য স্কেল
+        let scale = 1.5; 
         let canvas = document.getElementById('pdf-canvas');
         let ctx = canvas.getContext('2d');
         let textLayerDiv = document.getElementById('text-layer');
         let container = document.getElementById('page-container');
 
-        // ফাইল আপলোড হ্যান্ডলার
+        // ফাইল ইনপুট
         document.getElementById('file-input').addEventListener('change', async (e) => {
             let file = e.target.files[0];
             if (!file) return;
@@ -144,64 +153,63 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // পেজ রেন্ডার ফাংশন
+        // পেজ রেন্ডার লজিক
         async function renderPage(num) {
             document.getElementById('loading').style.display = 'block';
-            
-            // টেক্সট লেয়ার ক্লিয়ার করা
             textLayerDiv.innerHTML = '';
             
             const page = await pdfDoc.getPage(num);
-            
-            // ১. ক্যানভাস সাইজ সেট করা
             const viewport = page.getViewport({ scale: scale });
+            
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            
             container.style.width = `${viewport.width}px`;
             container.style.height = `${viewport.height}px`;
 
-            // ২. ব্যাকগ্রাউন্ড হিসেবে পিডিএফ আঁকা
-            const renderContext = {
-                canvasContext: ctx,
-                viewport: viewport
-            };
-            await page.render(renderContext).promise;
+            // ক্যানভাসে পিডিএফ আঁকা
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-            // ৩. টেক্সট বের করে এডিটেবল বানানো (Magic Part)
+            // টেক্সট লেয়ার প্রসেসিং
             const textContent = await page.getTextContent();
             
             textContent.items.forEach(item => {
-                // লেখার পজিশন এবং স্টাইল বের করা
-                // PDF.js transform matrix: [scaleX, skewY, skewX, scaleY, x, y]
                 const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
                 
-                // ফন্ট হাইট ক্যালকুলেশন
+                // ফন্টের উচ্চতা এবং প্রস্থ
                 const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
-                const finalY = tx[5] - fontHeight; // টপ পজিশন ঠিক করা
+                const fontWidth = item.width * scale; // পুরানো লেখার প্রস্থ
+
+                // খালি টেক্সট বাদ দেওয়া
+                if (item.str.trim().length === 0) return;
 
                 const span = document.createElement('span');
                 span.textContent = item.str;
                 span.className = 'editable-text';
-                span.contentEditable = true; // এটাই এডিট করার অনুমতি দেয়
+                span.contentEditable = true;
 
-                // CSS স্টাইল অ্যাপ্লাই করা
+                // পজিশনিং
+                // PDF Y-axis উল্টো, তাই পজিশন ঠিক করা হচ্ছে
                 span.style.left = `${tx[4]}px`;
-                span.style.top = `${finalY}px`;
+                span.style.top = `${tx[5] - fontHeight}px`; 
                 span.style.fontSize = `${fontHeight}px`;
                 
-                // ফন্ট ফ্যামিলি যতটা সম্ভব ম্যাচ করা (ডিফল্ট sans-serif)
-                if (item.fontName) {
-                    span.style.fontFamily = 'sans-serif'; 
-                }
+                // প্রস্থ ঠিক রাখা যাতে পেছনের লেখা পুরোপুরি ঢেকে যায়
+                // যদি ইউজার ছোট লেখা লেখে, তবুও বক্সটি আগের লেখার সমান থাকবে
+                span.style.minWidth = `${fontWidth}px`; 
+
+                // ফন্ট কালার (কালো ডিফল্ট, পিডিএফ থেকে না পেলে)
+                span.style.color = '#000000'; 
                 
-                // যদি টেক্সট খালি না হয় তবেই যোগ করো
-                if (item.str.trim().length > 0) {
-                   textLayerDiv.appendChild(span);
+                // ফন্ট ফ্যামিলি চেষ্টা করা
+                if (item.fontName.toLowerCase().includes('bold')) {
+                    span.style.fontWeight = 'bold';
                 }
+                span.style.fontFamily = 'Arial, sans-serif';
+
+                textLayerDiv.appendChild(span);
             });
 
-            document.getElementById('page-num').textContent = `Page ${num}`;
+            document.getElementById('page-num').textContent = `Page ${num} / ${pdfDoc.numPages}`;
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -214,25 +222,16 @@
             }
         }
 
-        // সেভ ফাংশন (পুরো পেজ ছবি তুলে পিডিএফ বানাবে)
         async function savePDF() {
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('loading').innerText = "পিডিএফ তৈরি হচ্ছে... সময় লাগতে পারে";
             
-            // সিলেকশন বা ফোকাস বর্ডার রিমুভ করা
+            // ফোকাস বর্ডার সরানো
             if (document.activeElement) document.activeElement.blur();
 
-            // html2canvas দিয়ে পুরো ডিভ-এর স্ক্রিনশট নেওয়া
-            const canvasImg = await html2canvas(container, {
-                scale: 2, // হাই কোয়ালিটি
-                useCORS: true
-            });
-
+            const canvasImg = await html2canvas(container, { scale: 2, useCORS: true });
             const imgData = canvasImg.toDataURL('image/jpeg', 1.0);
             
             const { jsPDF } = window.jspdf;
-            
-            // পিডিএফ পেজ সাইজ সেট করা (ক্যানভাস অনুযায়ী)
             const pdf = new jsPDF({
                 orientation: canvas.width > canvas.height ? 'l' : 'p',
                 unit: 'px',
@@ -240,10 +239,9 @@
             });
 
             pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
-            pdf.save("edited-document.pdf");
+            pdf.save("edited-file.pdf");
             
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('loading').innerText = "প্রসেস হচ্ছে...";
         }
     </script>
 </body>
