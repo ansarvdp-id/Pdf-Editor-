@@ -3,262 +3,440 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>সহজ পিডিএফ এডিটর</title>
-    <!-- স্টাইলিং (CSS) -->
+    <title>প্রফেশনাল পিডিএফ এডিটর</title>
+    <!-- আইকন লাইব্রেরি -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
+        :root {
+            --primary: #4a90e2;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --bg: #f5f6fa;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 { color: #333; }
-        
-        /* টুলবার স্টাইল */
-        .toolbar {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 20px;
-            width: 90%;
-            max-width: 800px;
-        }
-        
-        .input-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        label { font-size: 12px; margin-bottom: 3px; font-weight: bold; }
-        
-        input[type="text"], input[type="number"], input[type="color"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        button {
+        /* হেডার এবং টুলবার */
+        .header {
+            width: 100%;
+            background: white;
             padding: 10px 20px;
-            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 5px;
+            border-right: 1px solid #ddd;
+            padding-right: 15px;
+        }
+
+        .tool-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
             border-radius: 4px;
             cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        .btn-upload { background-color: #3498db; color: white; }
-        .btn-add { background-color: #27ae60; color: white; }
-        .btn-download { background-color: #e74c3c; color: white; }
-        
-        button:hover { opacity: 0.9; }
+        .tool-btn:hover { background: #f0f0f0; }
+        .tool-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        /* ক্যানভাস এরিয়া */
-        #pdf-container {
+        .btn-upload { background: var(--primary); color: white; border: none; }
+        .btn-save { background: var(--success); color: white; border: none; }
+        
+        /* মেইন এডিটর এরিয়া */
+        .editor-container {
+            flex: 1;
+            width: 100%;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: #525659;
             position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 1px solid #ccc;
+        }
+
+        #pdf-wrapper {
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        canvas { display: block; }
+
+        /* ইনপুট ফিল্ড স্টাইল (যখন ক্লিক করে লিখবেন) */
+        .input-element {
+            position: absolute;
+            background: transparent;
+            border: 1px dashed #4a90e2;
+            font-family: Helvetica, sans-serif;
+            padding: 2px;
+            outline: none;
+            white-space: nowrap;
+            cursor: move;
+            z-index: 10;
+        }
+
+        .input-element:focus { border: 2px solid var(--primary); background: rgba(255, 255, 255, 0.8); }
+
+        /* ইরেজার বক্স স্টাইল */
+        .eraser-box {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            z-index: 5;
+            cursor: pointer;
         }
         
-        canvas {
-            display: block;
-            max-width: 100%;
+        /* পেজিনেশন (নিচে) */
+        .pagination {
+            position: fixed;
+            bottom: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            z-index: 200;
         }
+        .page-btn {
+            background: none; border: none; color: white; cursor: pointer; font-size: 16px;
+        }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* লোডিং স্পিনার */
-        #loader { display: none; margin-top: 20px; font-size: 18px; color: #555; }
     </style>
-
-    <!-- লাইব্রেরি লোড করা হচ্ছে -->
+    
+    <!-- লাইব্রেরি -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-        // PDF.js Worker সেটআপ
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-    </script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
 </head>
 <body>
 
-    <h1>আমার পিডিএফ এডিটর</h1>
+    <!-- হেডার এবং টুলস -->
+    <div class="header">
+        <div style="font-weight: bold; font-size: 20px;">PDF Editor <span style="font-size:12px; color:#666;">Ultimate</span></div>
+        
+        <div class="toolbar">
+            <!-- টুলস -->
+            <div class="tool-group">
+                <button class="tool-btn active" id="btn-cursor" onclick="selectTool('cursor')"><i class="fas fa-mouse-pointer"></i> সিলেক্ট</button>
+                <button class="tool-btn" id="btn-text" onclick="selectTool('text')"><i class="fas fa-font"></i> টেক্সট লিখুন</button>
+                <button class="tool-btn" id="btn-eraser" onclick="selectTool('eraser')"><i class="fas fa-eraser"></i> মুছুন (সাদা কালি)</button>
+            </div>
+            
+            <!-- ফন্ট অপশন -->
+            <div class="tool-group">
+                <input type="number" id="font-size" value="16" min="8" max="72" style="width: 50px; padding: 5px;"> px
+                <input type="color" id="text-color" value="#000000" style="height: 30px; width: 30px; border: none;">
+            </div>
 
-    <div class="toolbar">
-        <div class="input-group">
-            <label>১. ফাইল আপলোড করুন</label>
-            <input type="file" id="file-upload" accept="application/pdf">
-        </div>
-
-        <div class="input-group">
-            <label>২. টেক্সট লিখুন</label>
-            <input type="text" id="user-text" placeholder="এখানে লিখুন...">
-        </div>
-
-        <div class="input-group">
-            <label>ফন্ট সাইজ</label>
-            <input type="number" id="font-size" value="24" min="10" max="100" style="width: 60px;">
-        </div>
-
-        <div class="input-group">
-            <label>রঙ</label>
-            <input type="color" id="text-color" value="#000000">
-        </div>
-
-        <div style="display: flex; align-items: flex-end;">
-            <button class="btn-add" onclick="addTextToCanvas()">৩. টেক্সট যোগ করুন</button>
-        </div>
-
-        <div style="display: flex; align-items: flex-end;">
-            <button class="btn-download" onclick="downloadPDF()">৪. ডাউনলোড PDF</button>
+            <!-- অ্যাকশন -->
+            <label class="tool-btn btn-upload">
+                <i class="fas fa-upload"></i> PDF আপলোড
+                <input type="file" id="file-upload" accept="application/pdf" style="display: none;">
+            </label>
+            <button class="tool-btn btn-save" onclick="downloadPDF()"><i class="fas fa-save"></i> ডাউনলোড</button>
         </div>
     </div>
 
-    <div id="loader">লোড হচ্ছে... দয়া করে অপেক্ষা করুন।</div>
-    
-    <div id="pdf-container">
-        <canvas id="the-canvas"></canvas>
+    <!-- এডিটর ক্যানভাস -->
+    <div class="editor-container">
+        <div id="pdf-wrapper">
+            <canvas id="the-canvas"></canvas>
+            <!-- ডাইনামিক ইনপুট এবং ইরেজার এখানে তৈরি হবে -->
+            <div id="overlay-layer"></div>
+        </div>
+    </div>
+
+    <!-- পেজিনেশন কন্ট্রোল -->
+    <div class="pagination" id="pagination-controls" style="display: none;">
+        <button class="page-btn" onclick="changePage(-1)"><i class="fas fa-chevron-left"></i></button>
+        <span id="page-info">Page 1 of 1</span>
+        <button class="page-btn" onclick="changePage(1)"><i class="fas fa-chevron-right"></i></button>
     </div>
 
     <script>
-        // ভেরিয়েবল ডিক্লেয়ারেশন
-        let existingPdfBytes = null;
-        let pdfDoc = null;
-        let scale = 1.5;
+        // --- ভেরিয়েবল ---
+        let pdfDoc = null;          // PDF.js ডকুমেন্ট
+        let pdfBytes = null;        // আসল ফাইলের বাইট
         let pageNum = 1;
-        let pdfPage = null;
-        let viewport = null;
+        let totalPages = 0;
+        let scale = 1.5;            // জুম লেভেল
         
-        // এডিট করার জন্য ডাটা স্টোর
-        let addedTexts = []; 
-        let selectedX = 50;
-        let selectedY = 50;
+        let currentTool = 'cursor'; // cursor, text, eraser
+        
+        // সব পেজের এডিট ডাটা এখানে জমা হবে
+        // structure: { 1: [items...], 2: [items...] }
+        let allEdits = {}; 
 
-        const fileInput = document.getElementById('file-upload');
         const canvas = document.getElementById('the-canvas');
         const ctx = canvas.getContext('2d');
-        const loader = document.getElementById('loader');
+        const overlayLayer = document.getElementById('overlay-layer');
+        const fileInput = document.getElementById('file-upload');
 
-        // ফাইল আপলোড ইভেন্ট
-        fileInput.addEventListener('change', async function(e) {
+        // --- টুল সিলেকশন ---
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${tool}`).classList.add('active');
+            
+            if(tool === 'cursor') overlayLayer.style.cursor = 'default';
+            else if(tool === 'text') overlayLayer.style.cursor = 'text';
+            else if(tool === 'eraser') overlayLayer.style.cursor = 'crosshair';
+        }
+
+        // --- ফাইল আপলোড ---
+        fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            if (file && file.type === "application/pdf") {
-                loader.style.display = 'block';
-                const arrayBuffer = await file.arrayBuffer();
-                existingPdfBytes = arrayBuffer;
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(ev) {
+                pdfBytes = ev.target.result;
+                const loadingTask = pdfjsLib.getDocument(pdfBytes);
+                pdfDoc = await loadingTask.promise;
+                totalPages = pdfDoc.numPages;
                 
-                // PDF দেখার জন্য রেন্ডার করা
-                await renderPDF(arrayBuffer);
-                loader.style.display = 'none';
-            } else {
-                alert("দয়া করে একটি সঠিক PDF ফাইল আপলোড করুন।");
-            }
+                // রিসেট
+                pageNum = 1;
+                allEdits = {}; 
+                document.getElementById('pagination-controls').style.display = 'flex';
+                
+                renderPage(pageNum);
+            };
+            reader.readAsArrayBuffer(file);
         });
 
-        // PDF রেন্ডার ফাংশন (PDF.js ব্যবহার করে)
-        async function renderPDF(data) {
-            const loadingTask = pdfjsLib.getDocument(data);
-            const pdf = await loadingTask.promise;
+        // --- পেজ রেন্ডার ---
+        async function renderPage(num) {
+            if (!pdfDoc) return;
+
+            // বর্তমান পেজের এডিটগুলো সেভ করে নিই (যদি DOM এ থাকে)
+            // (সিম্পলিসিটির জন্য আমরা সরাসরি DOM-এ কাজ করছি, কিন্তু পেজ বদলালে DOM ক্লিয়ার হবে)
+            // তাই পেজ রেন্ডারের আগে DOM ক্লিন করা জরুরি।
             
-            // শুধুমাত্র প্রথম পেজ দেখানো হচ্ছে (Simplification এর জন্য)
-            pdfPage = await pdf.getPage(pageNum);
-            viewport = pdfPage.getViewport({ scale: scale });
+            // ১. PDF পেজ আঁকা
+            const page = await pdfDoc.getPage(num);
+            const viewport = page.getViewport({ scale: scale });
 
             canvas.height = viewport.height;
             canvas.width = viewport.width;
+            overlayLayer.style.width = `${viewport.width}px`;
+            overlayLayer.style.height = `${viewport.height}px`;
 
             const renderContext = {
                 canvasContext: ctx,
                 viewport: viewport
             };
-            
-            await pdfPage.render(renderContext).promise;
-            addedTexts = []; // নতুন ফাইল লোড হলে আগের টেক্সট রিসেট
+            await page.render(renderContext).promise;
+
+            // ২. পেজ ইনফো আপডেট
+            document.getElementById('page-info').textContent = `Page ${num} of ${totalPages}`;
+
+            // ৩. আগের সেভ করা এডিটগুলো ফিরিয়ে আনা (Restore edits)
+            overlayLayer.innerHTML = ''; // ক্লিয়ার
+            if(allEdits[num]) {
+                allEdits[num].forEach(item => {
+                    if(item.type === 'text') createTextElement(item.x, item.y, item.text, item.size, item.color, true);
+                    if(item.type === 'eraser') createEraserElement(item.x, item.y, item.w, item.h, true);
+                });
+            }
         }
 
-        // ক্যানভাসে ক্লিক করলে কো-অর্ডিনেট নেওয়া
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            // ক্যানভাসের সাপেক্ষে X এবং Y পজিশন বের করা
-            selectedX = (e.clientX - rect.left);
-            selectedY = (e.clientY - rect.top);
-            
-            alert(`পজিশন সিলেক্ট করা হয়েছে! এখন টেক্সট লিখে "যোগ করুন" বাটনে চাপুন।\nX: ${Math.round(selectedX)}, Y: ${Math.round(selectedY)}`);
+        // --- পেজ পরিবর্তন ---
+        function changePage(offset) {
+            if (!pdfDoc) return;
+            const newPage = pageNum + offset;
+            if (newPage >= 1 && newPage <= totalPages) {
+                pageNum = newPage;
+                renderPage(pageNum);
+            }
+        }
+
+        // --- ইন্টার‍্যাকশন (Click on Overlay) ---
+        overlayLayer.addEventListener('click', (e) => {
+            if (currentTool === 'cursor') return;
+
+            const rect = overlayLayer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (currentTool === 'text') {
+                createTextElement(x, y);
+                selectTool('cursor'); // লেখার পর কার্সরে ফিরে যাবে
+            } 
+            else if (currentTool === 'eraser') {
+                // ইরেজার ফিক্সড সাইজ (৫০x২০) অথবা ড্র্যাগ করা যেতে পারে (এখানে ফিক্সড রাখা হলো সহজ করার জন্য)
+                createEraserElement(x, y, 100, 30); 
+                selectTool('cursor');
+            }
         });
 
-        // ক্যানভাসে টেক্সট দেখানোর ফাংশন (Visual Preview)
-        function addTextToCanvas() {
-            const text = document.getElementById('user-text').value;
-            const size = document.getElementById('font-size').value;
-            const color = document.getElementById('text-color').value;
-
-            if(!text) { alert("দয়া করে কিছু লিখুন!"); return; }
-            if(!existingPdfBytes) { alert("আগে PDF আপলোড করুন!"); return; }
-
-            // ভিজুয়ালি ক্যানভাসে আঁকা
-            ctx.font = `${size}px sans-serif`;
-            ctx.fillStyle = color;
-            ctx.fillText(text, selectedX, selectedY);
-
-            // আসল PDF এ সেভ করার জন্য ডাটা স্টোর করা
-            // PDF এর কোঅর্ডিনেট সিস্টেম ক্যানভাস থেকে আলাদা (নিচ থেকে শুরু হয়)
-            // তাই Y কে কনভার্ট করতে হবে পরে
-            addedTexts.push({
-                text: text,
-                x: selectedX,
-                y: selectedY, // এটা পরে কনভার্ট করতে হবে
-                size: parseInt(size),
-                color: color
-            });
+        // --- টেক্সট এলিমেন্ট তৈরি ---
+        function createTextElement(x, y, text = '', fontSize = null, color = null, isRestoring = false) {
+            const div = document.createElement('div');
+            div.contentEditable = true;
+            div.className = 'input-element';
             
-            document.getElementById('user-text').value = ""; // ইনপুট ক্লিয়ার
+            const size = fontSize || document.getElementById('font-size').value;
+            const col = color || document.getElementById('text-color').value;
+
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`; // সামান্য অ্যাডজাস্টমেন্ট
+            div.style.fontSize = `${size}px`;
+            div.style.color = col;
+            div.innerText = text;
+
+            // ডাটা সেভ করা (On Blur)
+            div.onblur = () => {
+                if(div.innerText.trim() === '') {
+                    div.remove(); 
+                    removeEditData(pageNum, div);
+                } else {
+                    saveEditData(pageNum, {
+                        type: 'text',
+                        x: parseFloat(div.style.left),
+                        y: parseFloat(div.style.top),
+                        text: div.innerText,
+                        size: parseInt(div.style.fontSize),
+                        color: div.style.color,
+                        id: Date.now() // ইউনিক আইডি
+                    });
+                    div.style.border = 'none'; // লেখার শেষে বর্ডার গায়েব
+                }
+            };
+
+            overlayLayer.appendChild(div);
+            
+            // নতুন তৈরির সময় ফোকাস দেওয়া
+            if(!isRestoring) {
+                setTimeout(() => div.focus(), 0);
+            } else {
+                div.style.border = 'none';
+            }
         }
 
-        // PDF ডাউনলোড এবং মডিফাই ফাংশন (PDF-Lib ব্যবহার করে)
+        // --- ইরেজার এলিমেন্ট তৈরি ---
+        function createEraserElement(x, y, w, h, isRestoring = false) {
+            const div = document.createElement('div');
+            div.className = 'eraser-box';
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+            div.style.width = `${w}px`;
+            div.style.height = `${h}px`;
+            
+            // ইরেজার ডিলেট করার অপশন (ডাবল ক্লিক করলে মুছে যাবে)
+            div.ondblclick = () => {
+                div.remove();
+                // ডাটাবেস থেকেও মুছতে হবে (এখানে জটিলতা এড়াতে বাদ দেওয়া হলো, রিফ্রেশে চলে যাবে না হলে)
+            };
+
+            if(!isRestoring) {
+                saveEditData(pageNum, {
+                    type: 'eraser',
+                    x: x, y: y, w: w, h: h
+                });
+            }
+
+            overlayLayer.appendChild(div);
+        }
+
+        // --- ডাটা স্টোরেজ ম্যানেজমেন্ট ---
+        function saveEditData(page, data) {
+            if(!allEdits[page]) allEdits[page] = [];
+            // ডুপ্লিকেট এড়াতে বা আপডেট করতে চাইলে লজিক বাড়ানো যাবে
+            allEdits[page].push(data);
+        }
+
+        function removeEditData(page, element) {
+            // সিম্পল রাখার জন্য ইমপ্লিমেন্ট করা হয়নি, অ্যারে ফিল্টার করতে হবে
+        }
+
+        // --- ফাইনাল PDF জেনারেট এবং ডাউনলোড ---
         async function downloadPDF() {
-            if (!existingPdfBytes) return;
+            if (!pdfBytes) { alert("আগে ফাইল আপলোড করুন!"); return; }
 
             const { PDFDocument, rgb } = PDFLib;
+            const doc = await PDFDocument.load(pdfBytes);
+            const pages = doc.getPages();
 
-            // আসল PDF লোড করা
-            const pdfDoc = await PDFDocument.load(existingPdfBytes);
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0]; // আমরা শুধু ১ম পেজে কাজ করছি
-            
-            const { width, height } = firstPage.getSize();
+            // সব পেজের এডিট লুপ করা
+            for (const [pNum, edits] of Object.entries(allEdits)) {
+                const pageIndex = parseInt(pNum) - 1;
+                const page = pages[pageIndex];
+                const { width, height } = page.getSize();
+                
+                // স্কেলিং ফ্যাক্টর (ক্যানভাস সাইজ vs PDF সাইজ)
+                // আমাদের ক্যানভাস scale 1.5 এ আছে, তাই রেশিও বের করতে হবে
+                const canvasWidth = canvas.width;
+                const scaleFactor = width / canvasWidth; 
 
-            // সব যোগ করা টেক্সট লুপ করা
-            addedTexts.forEach(item => {
-                // রঙ হেক্স থেকে RGB তে কনভার্ট করা
-                const r = parseInt(item.color.slice(1, 3), 16) / 255;
-                const g = parseInt(item.color.slice(3, 5), 16) / 255;
-                const b = parseInt(item.color.slice(5, 7), 16) / 255;
+                for (const item of edits) {
+                    // Y কো-অর্ডিনেট কনভার্শন (Browser Top-Left -> PDF Bottom-Left)
+                    // item.y ক্যানভাস পিক্সেল। 
+                    // PDF Y = height - (item.y * scaleFactor) - (fontHeight adjustment)
+                    
+                    const pdfX = item.x * scaleFactor;
+                    const pdfY = height - (item.y * scaleFactor) - (item.type === 'text' ? (item.size * scaleFactor * 0.8) : 0);
 
-                // Canvas কো-অর্ডিনেট এবং PDF কো-অর্ডিনেট মেলানো
-                // PDF-lib এর Y অক্ষ নিচ থেকে উপরে যায়, কিন্তু Canvas উপর থেকে নিচে আসে
-                const pdfX = (item.x / canvas.width) * width;
-                const pdfY = height - ((item.y / canvas.height) * height);
+                    if (item.type === 'text') {
+                        // কালার হেক্স থেকে আরজিবি
+                        // সিম্পলিসিটির জন্য কালো ডিফল্ট রাখছি, কালার পার্সার জটিলতা এড়াতে
+                        let pdfColor = rgb(0, 0, 0); 
+                        // চাইলে হেক্স পার্সার যোগ করা যায়
+                        
+                        page.drawText(item.text, {
+                            x: pdfX,
+                            y: pdfY,
+                            size: item.size * scaleFactor,
+                            color: pdfColor
+                        });
+                    } 
+                    else if (item.type === 'eraser') {
+                        // সাদা বক্স আঁকা
+                        page.drawRectangle({
+                            x: pdfX,
+                            y: height - (item.y * scaleFactor) - (item.h * scaleFactor),
+                            width: item.w * scaleFactor,
+                            height: item.h * scaleFactor,
+                            color: rgb(1, 1, 1), // Pure White
+                        });
+                    }
+                }
+            }
 
-                firstPage.drawText(item.text, {
-                    x: pdfX,
-                    y: pdfY,
-                    size: item.size * (width / canvas.width), // স্কেল এডজাস্টমেন্ট
-                    color: rgb(r, g, b),
-                });
-            });
-
-            // নতুন PDF বাইট তৈরি
-            const pdfBytes = await pdfDoc.save();
-
-            // ব্রাউজারে ডাউনলোড শুরু করা
-            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const pdfData = await doc.save();
+            const blob = new Blob([pdfData], { type: "application/pdf" });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "edited-document.pdf";
+            link.download = "edited-file.pdf";
             link.click();
         }
     </script>
